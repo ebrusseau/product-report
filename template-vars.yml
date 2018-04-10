@@ -1,0 +1,10 @@
+smtp-host: relay.example.com
+smtp-port: 25
+mail-from: user@example.com
+mail-to: user@example.com
+
+api_token: PIVNET_API_TOKEN
+sites: |-
+  PCFPRE-PHX|https://opsmgr.pcfpre-phx.example.com|pcfautomation|SECRETKEY
+  PCF-PHX|https://opsmgr.pcf-phx.example.com|pcfautomation|SECRETKEY
+  PCF-EWD|https://opsmgr.pcf-ewd.example.com|pcfautomation|SECRETKEY

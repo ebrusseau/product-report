@@ -1,0 +1,110 @@
+groups: []
+
+resources:
+- name: automation
+  type: git
+  check_every: 5m
+  source:
+    uri: https://git.example.com/pcf-operations/automation.git
+    branch: master
+    paths: ["product-report"]
+    skip_ssl_verification: true
+- name: send-an-email
+  type: email
+  source:
+    smtp:
+      host: {{smtp-host}}
+      port: {{smtp-port}} # this must be a string
+      anonymous: true
+    from: {{mail-from}}
+    to: [ {{mail-to}} ]
+- name: schedule
+  type: time
+  source:
+    start: 6AM
+    stop: 7AM
+    location: America/Los_Angeles
+    days: [ Thursday ]
+
+resource_types:
+- name: email
+  type: docker-image
+  source:
+    repository: pivotalservices/concourse-email-resource
+
+jobs:
+- name: report
+  plan:
+  - get: schedule
+    trigger: true
+  - get: automation
+  - task: write-email-headers
+    config:
+      inputs:
+      outputs:
+      - name: email-headers
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: pivotalservices/pcf_automation
+      run:
+        path: sh
+        args:
+        - -ec
+        - |
+          echo 'MIME-version: 1.0' > email-headers/headers.txt
+          echo 'Content-Type: text/html; charset="UTF-8"' >> email-headers/headers.txt
+  - task: write-email-subject
+    config:
+      inputs:
+      outputs:
+      - name: email-subject
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: pivotalservices/pcf_automation
+      run:
+        path: sh
+        args:
+        - -ec
+        - |
+          echo "Weekly product report" > email-subject/subject.txt
+  - task: report
+    config:
+      inputs:
+      - name: automation
+      - name: email-headers
+      - name: email-subject
+      outputs:
+      - name: email
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: pivotalservices/pcf_automation
+      run:
+        path: sh
+        args:
+        - -ec
+        - |
+          echo '<html><head></head><body><pre>' > email/report.html
+          automation/product-report/report.rb >> email/report.html
+          echo '</pre></body></html>' >> email/report.html
+      params:
+        API_TOKEN: {{api_token}}
+        SITES: {{sites}}
+    on_success:
+      put: send-an-email
+      params:
+        headers: email-headers/headers.txt
+        subject: email-subject/subject.txt
+        body: email/report.html
+    on_failure:
+      put: send-an-email
+      params:
+        headers: email-headers/headers.txt
+        subject: email-subject/subject.txt
+        body: email/report.html
+

@@ -1,0 +1,30 @@
+groups: []
+
+resources:
+- name: automation
+  type: git
+  check_every: 5m
+  source:
+    uri: https://git.example.com/pcf-operations/automation.git
+    branch: master
+    paths: ["product-report"]
+    skip_ssl_verification: true
+
+jobs:
+- name: report
+  plan:
+  - get: automation
+  - task: report
+    config:
+      inputs:
+      - name: automation
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: pivotalservices/pcf_automation
+      run:
+        path: automation/product-report/report.rb
+      params:
+        API_TOKEN: {{api_token}}
+        SITES: {{sites}}
