@@ -25,17 +25,15 @@
 require 'json'
 
 # OpsMgr Type <=> PivNet Slug conversion since Pivotal is not consistent with naming
+# Create entries For exception cases, otherwise type from OpsMgr will be used
 product_table = {
   "apm" => "pcf-metrics",
+  "apmPostgres" => "pcf-metrics",
   "apigee-cf-service-broker" => "apigee-edge-for-pcf-service-broker",
   "cf" => "elastic-runtime",
   "p-bosh" => "ops-manager",
-  "p-rabbitmq" => "pivotal-rabbitmq-service",
-  "p-mysql" => "p-mysql",
-  "p-spring-cloud-services" => "p-spring-cloud-services",
   "Pivotal_Single_Sign-On_Service" => "p-identity",
-  "p-windows-runtime" => "runtime-for-windows",
-  "p-redis" => "p-redis"
+  "p-windows-runtime" => "runtime-for-windows"
 }
 
 # TODO rename sites to foundations
@@ -86,12 +84,14 @@ sites.each do |f|
       found = true if y.has_value?(x['type'])
     end
     if !found
+      # determine if product_table mapping exists, if so use it, otherwise use key value
+      product_slug = product_table.has_key?(x['type']) ? product_table[x['type']] : x['type']
       v = `curl \
              -s \
              -H \"Accept: application/json\" \
              -H \"Content-Type: application/json\" \
              -H \"Authorization: Token #{ENV['API_TOKEN']}\" \
-             -X GET https://network.pivotal.io/api/v2/products/#{product_table[x['type']]}/releases`
+             -X GET https://network.pivotal.io/api/v2/products/#{product_slug}/releases`
 
       r = JSON.parse(v)
 
@@ -137,7 +137,7 @@ end
 puts
 
 # Find each product
-product_list.each do |p| 
+product_list.each do |p|
   printf "%-42s", sprintf("%s (%s)", p[:type], p[:product_version])
   deployments.each do |a|
     found = false
